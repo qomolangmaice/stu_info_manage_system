@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h> 	 	/* isdigit(int) */
 
 #define MAXSIZE 50 
 
@@ -19,8 +20,9 @@ struct stu_info_node{ 	/* student information node */
 	int class;
 };
 
-void display_manage_interface(void); 
+void read_info_from_exist(struct stu_info_node info_table[]);
 void init_stu_info(struct stu_info_node info_table[]);
+void display_manage_interface(void); 
 
 
 

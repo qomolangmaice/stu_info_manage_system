@@ -21,11 +21,12 @@ void main()
 		printf("Please input operate selection: ");
 		scanf("%d", &select_flag);
 
-		if(select_flag == 0)
-			return;
-
 		switch(select_flag)
 		{
+			case 0:
+	 	 	 	printf("Exit from the manage system.\n");
+				exit(0);
+				break;
 			//case 1:
 			//	add_stu_info(stu_info_table);
 			// 	break;
@@ -45,8 +46,8 @@ void main()
 			//	save_stu_info(stu_info_table);
 			//	break;
 			default:
-				printf("Your input is wrong, please input again.\n");
+				printf("The input number is wrong, please input again.\n");
 				break;
-		}
+		}/* switch */
 	}
 }

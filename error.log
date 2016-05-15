@@ -1,0 +1,6 @@
+1.
+stu_info_manage.c:32:29: warning: assignment makes integer from pointer without a cast [-Wint-conversion]
+   stu_info_table[i].sex[10] = "";
+
+解决办法：
+   stu_info_table[i].sex[10] = '\0';
