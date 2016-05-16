@@ -27,12 +27,12 @@ void main()
 	 	 	 	printf("Exit from the manage system.\n");
 				exit(0);
 				break;
-			//case 1:
-			//	add_stu_info(stu_info_table);
-			// 	break;
-			//case 2:
-			//	display_stu_info(stu_info_table);
-			//	break;
+			case 1:
+				add_stu_info(stu_info_table);
+			 	break;
+			case 2:
+				display_stu_info(stu_info_table);
+				break;
 			//case 3:
 			//	modify_stu_info(stu_info_table);
 			//	break;
