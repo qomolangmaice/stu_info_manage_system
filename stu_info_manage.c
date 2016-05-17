@@ -6,8 +6,8 @@
  *     Created: 2016.05.15 15:34:28
  */
 
-/* 读取已存在文件中学生学籍信息 */
-void read_info_from_exist(struct stu_info_node info_table[])
+/* 读取已存在文件中学生学籍信息,并返回学生个数 */
+int read_info_from_exist(struct stu_info_node info_table[])
 {
 	FILE *fp = NULL;
 	int i = 0;
@@ -15,7 +15,7 @@ void read_info_from_exist(struct stu_info_node info_table[])
 	/* 以二进制形式读取文件信息 */
 	fp = fopen("stu_info_table.dat", "rb");
 	while(fread(&info_table[i], sizeof(struct stu_info_node), 1, fp))
-		++i;
+		i++;
 
 	/* 以文本形式读取文件信息 */
 	//if((fp = fopen("stu_info_node.dat", "r")) != NULL)
@@ -26,12 +26,15 @@ void read_info_from_exist(struct stu_info_node info_table[])
 	//									 p_info_node->class);
 
 	fclose(fp);
-
-	//return i;
+	return i;
 }
 
-/* 初始化学生信息表，检查是否存在学生信息表存储文件，若没有则创建. */
-void init_stu_info(struct stu_info_node stu_info_table[])
+/* 
+ * 初始化学生信息表;
+ * 检查是否存在学生信息表存储文件，如果不存在则创建信息存储文件;
+ * 如果存在学生信息存储文件，读取已存在文件并返回学生个数 
+ */
+int init_stu_info(struct stu_info_node stu_info_table[])
 {
 	FILE *fp = NULL;
 	char yes_or_no;
@@ -59,12 +62,12 @@ void init_stu_info(struct stu_info_node stu_info_table[])
 			fclose(fp);
 		}
 		else
-			return;
+			return 0;
 	}
-	else
-		//number = read_info_from_exist(stu_info_table);
-		/* 存在学生信息表存储文件，那么就从该文件中读取所有学生的信息. */
-		read_info_from_exist(stu_info_table);
+	else 	/* 存在学生信息表存储文件，那么就从该文件中读取所有学生的信息. */
+		number = read_info_from_exist(stu_info_table);
+	/* 返回学生个数 */
+	return number;
 }
 
 /* 显示学生信息管理界面 */
@@ -85,77 +88,64 @@ void save_stu_info(struct stu_info_node *p_info_node)
 	FILE *fp = NULL;
 
 	/* 以二进制形式追加信息到文件中 */
-	//fp = fopen("stu_info_table.dat", "ab+");
+	fp = fopen("stu_info_table.dat", "ab+");
 	/* 以二进制形式将数据写入到文件中 */
-	//fwrite(p_info_node, sizeof(struct stu_info_node), 1, fp);
+	fwrite(p_info_node, sizeof(struct stu_info_node), 1, fp);
 	
 	/* 以文本形式追加信息到文件中 */
-	fp = fopen("stu_info_table.dat", "a+");
+	//fp = fopen("stu_info_table.dat", "a+");
 	/* 以文本形式将数据写入到文件中 */
-	fprintf(fp, "%d %s %s %s %d", p_info_node->ID,
-			 	 	 	 	 	 p_info_node->name,
-								 p_info_node->sex,
-								 p_info_node->specialty,
-								 p_info_node->class);
-	//printf("%d\t%s\t%s\t%s\t%d\n", p_info_node->ID,
+	//fprintf(fp, "%d %s %s %s %d", p_info_node->ID,
 	//		 	 	 	 	 	 p_info_node->name,
 	//							 p_info_node->sex,
 	//							 p_info_node->specialty,
 	//							 p_info_node->class);
-	
 	fclose(fp);
 }
 
-/* 添加学生学籍信息,并保存信息到文件中 */
-void add_stu_info(struct stu_info_node info_table[])
+/* 添加学生学籍信息,并保存信息到文件中, 并且返回最新学生个数 */
+int add_stu_info(struct stu_info_node info_table[], int number)
 {
-	int i = 0;
-
 	while(1)
 	{
 		printf("Please input the student's ID: ");
-		scanf("%d", &info_table[i].ID);
+		scanf("%d", &info_table[number].ID);
 		printf("Please input the student's name: ");
-		scanf("%s", info_table[i].name);
+		scanf("%s", info_table[number].name);
 		printf("Please input the student's sex: ");
-		scanf("%s", info_table[i].sex);
+		scanf("%s", info_table[number].sex);
 		printf("Please input the student's specialty: ");
-		scanf("%s", info_table[i].specialty);
+		scanf("%s", info_table[number].specialty);
 		printf("Please input the student's class: ");
-		scanf("%d", &info_table[i].class);
+		scanf("%d", &info_table[number].class);
 
-		save_stu_info(&info_table[i]);
-		++i;
+		save_stu_info(&info_table[number]);
+		++number;
 
 		getchar();
-		printf("Continue or not ? (y/n) ");
+		printf("Continue input or not ? (y/n) ");
 		if(getchar() == 'n')
 			break;
 	}
 	printf("Add student information on success.\n");
+	return number;
 }
 
 /* 显示学生学籍信息 */
-void display_stu_info(struct stu_info_node info_table[])
+void display_stu_info(struct stu_info_node info_table[], int number)
 {
-	FILE *fp = NULL;
-	printf("%s\t%s\t%s\t%s\t%s\n", "ID", "name", "sex", "specialty", "class");
-	printf("---------------------------------------------\n");
-	fp = fopen("stu_info_table.dat", "r");
-	for(int i=0; i<5; ++i)
+	printf("----------------------------------------------\n");
+	printf(" %s\t%s\t%s\t%s\t%s\n", "ID", "name", "sex", "specialty", "class");
+	printf("----------------------------------------------\n");
+	for(int i=0; i<number; i++)
 	{
-		fscanf(fp, "%d %s %s %s %d\n", &info_table[i].ID,
-									   &info_table[i].name[20],
-									   &info_table[i].sex[10],
-									   &info_table[i].specialty[80],
-									   &info_table[i].class);
-		printf("%d\t%s\t%s\t%s\t%d\n", info_table[i].ID,
-									   info_table[i].name[20],
-									   info_table[i].sex[10],
-									   info_table[i].specialty[80],
-									   info_table[i].class);
+		printf(" %d\t%s\t%s\t%s\t\t%d\n", info_table[i].ID, 
+				 	 	 	 	 	 	  info_table[i].name, 
+										  info_table[i].sex, 
+										  info_table[i].specialty, 
+										  info_table[i].class);
 	}
-	fclose(fp);
+	printf("\n");
 }
 
 

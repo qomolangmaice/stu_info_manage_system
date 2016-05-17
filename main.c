@@ -12,8 +12,9 @@ void main()
 {
  	struct stu_info_node stu_info_table[MAXSIZE]; 	/* student information table */
 	int select_flag = 0;
+	int stu_number = 0;
 
-	init_stu_info(stu_info_table);
+	stu_number = init_stu_info(stu_info_table);
 
 	while(1)
 	{
@@ -28,10 +29,10 @@ void main()
 				exit(0);
 				break;
 			case 1:
-				add_stu_info(stu_info_table);
+				stu_number = add_stu_info(stu_info_table, stu_number);
 			 	break;
 			case 2:
-				display_stu_info(stu_info_table);
+				display_stu_info(stu_info_table, stu_number);
 				break;
 			//case 3:
 			//	modify_stu_info(stu_info_table);
@@ -46,7 +47,7 @@ void main()
 			//	save_stu_info(stu_info_table);
 			//	break;
 			default:
-				printf("The input number is wrong, please input again.\n");
+				printf("The input is wrong, please try again.\n");
 				break;
 		}/* switch */
 	}
