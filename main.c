@@ -32,14 +32,14 @@ void main()
 				stu_number = add_stu_info(stu_info_table, stu_number);
 			 	break;
 			case 2:
-				display_stu_info(stu_info_table, stu_number);
+				display_all_stu_info(stu_info_table, stu_number);
 				break;
-			//case 3:
-			//	modify_stu_info(stu_info_table);
-			//	break;
-			//case 4:
-			//	search_stu_info(stu_info_table);
-			//	break;
+			case 3:
+				modify_stu_info(stu_info_table, stu_number);
+				break;
+			case 4:
+				search_stu_info(stu_info_table, stu_number);
+				break;
 			//case 5:
 			//	delete_stu_info(stu_info_table);
 			//	break;

@@ -82,7 +82,7 @@ void display_manage_interface(void)
 	printf("*************************************************************\n");
 }
 
-/* 保存学生学籍信息到文件中 */
+/* 保存单个学生学籍信息到文件中 */
 void save_stu_info(struct stu_info_node *p_info_node)
 {
 	FILE *fp = NULL;
@@ -100,6 +100,16 @@ void save_stu_info(struct stu_info_node *p_info_node)
 	//							 p_info_node->sex,
 	//							 p_info_node->specialty,
 	//							 p_info_node->class);
+	fclose(fp);
+}
+
+/* 更新学生学籍信息 */
+void update_stu_info(struct stu_info_node info_table[], int number)
+{
+	FILE *fp = NULL;
+	fp = fopen("stu_info_table.dat", "wb");
+	for(int i=0; i<number; ++i)
+		fwrite(&info_table[i], sizeof(struct stu_info_node), 1, fp);
 	fclose(fp);
 }
 
@@ -131,8 +141,8 @@ int add_stu_info(struct stu_info_node info_table[], int number)
 	return number;
 }
 
-/* 显示学生学籍信息 */
-void display_stu_info(struct stu_info_node info_table[], int number)
+/* 显示所有学生学籍信息 */
+void display_all_stu_info(struct stu_info_node info_table[], int number)
 {
 	printf("----------------------------------------------\n");
 	printf(" %s\t%s\t%s\t%s\t%s\n", "ID", "name", "sex", "specialty", "class");
@@ -148,8 +158,106 @@ void display_stu_info(struct stu_info_node info_table[], int number)
 	printf("\n");
 }
 
+/* 显示单个学生学籍信息 */
+void display_single_stu_info(struct stu_info_node info_table[], int index)
+{
+	printf("----------------------------------------------\n");
+	printf(" %s\t%s\t%s\t%s\t%s\n", "ID", "name", "sex", "specialty", "class");
+	printf("----------------------------------------------\n");
+	printf(" %d\t%s\t%s\t%s\t\t%d\n", info_table[index].ID, 
+			 	 	 	 	 	 	  info_table[index].name, 
+									  info_table[index].sex, 
+									  info_table[index].specialty, 
+									  info_table[index].class);
+	printf("\n");
+}
 
+/* 修改学生学籍信息 */
+void modify_stu_info(struct stu_info_node info_table[], int number)
+{
+	FILE *fp = NULL;
+	char name[20];
+	int change_index = 0;
 
+	printf("Please input the name that you want to modify: ");
+	scanf("%s", name);
+
+	/* 找到需要修改的学生名字 */
+	for(int i=0; i<number; ++i)
+	{
+		if(strcmp(name, info_table[i].name) == 0)
+		{
+			change_index = i; 	/* 保存学生信息表中要修改的下标 */
+			break;
+		}
+	}
+
+	display_single_stu_info(info_table, change_index);
+	//printf("----------------------------------------------\n");
+	//printf(" %s\t%s\t%s\t%s\t%s\n", "ID", "name", "sex", "specialty", "class");
+	//printf("----------------------------------------------\n");
+	//printf(" %d\t%s\t%s\t%s\t\t%d\n", info_table[change_index].ID, 
+	//		 	 	 	 	 	 	  info_table[change_index].name, 
+	//								  info_table[change_index].sex, 
+	//								  info_table[change_index].specialty, 
+	//								  info_table[change_index].class);
+	printf("Please input the new info of the student: \n");
+ 	printf("Student's new ID: ");
+	scanf("%d", &info_table[change_index].ID);
+ 	printf("Student's new name: ");
+	scanf("%s", info_table[change_index].name);
+ 	printf("Student's new sex: ");
+	scanf("%s", info_table[change_index].sex);
+ 	printf("Student's new specialty: ");
+	scanf("%s", info_table[change_index].specialty);
+ 	printf("Student's class: ");
+	scanf("%d", &info_table[change_index].class);
+
+	/* 信息修改后重新更新文件里面的数据，保持数据一致性 */
+	update_stu_info(info_table, number);
+	printf("Modified on success.\n");
+}
+
+void search_stu_info(struct stu_info_node info_table[], int number)
+{
+	int select = 0;;
+	while(1)
+	{
+		printf(" (1) search by ID \n");
+		printf(" (2) search by name \n");                  	
+		scanf("%d", &select);                              	
+		switch(select)                                     	
+		{                                                  	
+			case 1:                                        	
+				find_by_ID(info_table, number);          	
+				break;                                     	
+			//case 2:                                        	
+			//	find_by_name(info_table, number);        	
+			//	break;                                     	
+			default:                                       	
+				printf("The input is wrong. Try again.\n");	
+				break;                                     	
+		}                                                  	
+
+		getchar();
+		printf("Continue input or not ? (y/n) ");
+		if(getchar() == 'n')
+			break;
+ 	}
+}
+
+void find_by_ID(struct stu_info_node info_table[], int number)
+{
+	int id;
+	printf("Please input the search ID: \n");
+	scanf("%d", &id);
+
+	for(int i=0; i<number; ++i)
+	{
+		if(id == info_table[i].ID)
+	 	 	display_single_stu_info(info_table, i);
+	}
+}
 
 
 

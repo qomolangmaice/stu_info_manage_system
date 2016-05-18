@@ -24,9 +24,18 @@ int read_info_from_exist(struct stu_info_node info_table[]);
 int init_stu_info(struct stu_info_node info_table[]);
 void display_manage_interface(void); 
 
+void update_stu_info(struct stu_info_node info_table[], int number);
 void save_stu_info(struct stu_info_node *p_info_node);
 int add_stu_info(struct stu_info_node info_table[], int number);
-void display_stu_info(struct stu_info_node info_table[], int number);
+
+void display_all_stu_info(struct stu_info_node info_table[], int number);
+void display_single_stu_info(struct stu_info_node info_table[], int index);
+
+void modify_stu_info(struct stu_info_node info_table[], int number);
+
+void search_stu_info(struct stu_info_node info_table[], int number);
+void find_by_ID(struct stu_info_node info_table[], int number);
+
 
 
 
