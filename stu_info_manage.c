@@ -77,8 +77,7 @@ void display_manage_interface(void)
 	printf("************  Student Information Manage System  ************\n");
  	printf("*   [1] add student info        [2] display student info    *\n");
  	printf("*   [3] modify student info     [4] search  student info    *\n"); 
- 	printf("*   [5] delete student info     [6] save    student info    *\n"); 
- 	printf("*   [0] exit                                                *\n"); 
+ 	printf("*   [5] delete student info     [0] exit                   *\n"); 
 	printf("*************************************************************\n");
 }
 
