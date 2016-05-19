@@ -35,7 +35,13 @@ void modify_stu_info(struct stu_info_node info_table[], int number);
 
 void search_stu_info(struct stu_info_node info_table[], int number);
 void find_by_ID(struct stu_info_node info_table[], int number);
+void find_by_name(struct stu_info_node info_table[], int number);
+void find_by_specialty(struct stu_info_node info_table[], int number);
 
+int delete_stu_info(struct stu_info_node info_table[], int number);
+int delete_by_ID(struct stu_info_node info_table[], int number);
+int delete_by_name(struct stu_info_node info_table[], int number);
+int delete_by_specialty(struct stu_info_node info_table[], int number);
 
 
 

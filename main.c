@@ -40,9 +40,9 @@ void main()
 			case 4:
 				search_stu_info(stu_info_table, stu_number);
 				break;
-			//case 5:
-			//	delete_stu_info(stu_info_table);
-			//	break;
+			case 5:
+				stu_number = delete_stu_info(stu_info_table, stu_number);
+				break;
 			//case 6:
 			//	save_stu_info(stu_info_table);
 			//	break;

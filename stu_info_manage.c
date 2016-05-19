@@ -77,7 +77,7 @@ void display_manage_interface(void)
 	printf("************  Student Information Manage System  ************\n");
  	printf("*   [1] add student info        [2] display student info    *\n");
  	printf("*   [3] modify student info     [4] search  student info    *\n"); 
- 	printf("*   [5] delete student info     [5] save    student info    *\n"); 
+ 	printf("*   [5] delete student info     [6] save    student info    *\n"); 
  	printf("*   [0] exit                                                *\n"); 
 	printf("*************************************************************\n");
 }
@@ -161,15 +161,11 @@ void display_all_stu_info(struct stu_info_node info_table[], int number)
 /* 显示单个学生学籍信息 */
 void display_single_stu_info(struct stu_info_node info_table[], int index)
 {
-	printf("----------------------------------------------\n");
-	printf(" %s\t%s\t%s\t%s\t%s\n", "ID", "name", "sex", "specialty", "class");
-	printf("----------------------------------------------\n");
 	printf(" %d\t%s\t%s\t%s\t\t%d\n", info_table[index].ID, 
 			 	 	 	 	 	 	  info_table[index].name, 
 									  info_table[index].sex, 
 									  info_table[index].specialty, 
 									  info_table[index].class);
-	printf("\n");
 }
 
 /* 修改学生学籍信息 */
@@ -193,14 +189,6 @@ void modify_stu_info(struct stu_info_node info_table[], int number)
 	}
 
 	display_single_stu_info(info_table, change_index);
-	//printf("----------------------------------------------\n");
-	//printf(" %s\t%s\t%s\t%s\t%s\n", "ID", "name", "sex", "specialty", "class");
-	//printf("----------------------------------------------\n");
-	//printf(" %d\t%s\t%s\t%s\t\t%d\n", info_table[change_index].ID, 
-	//		 	 	 	 	 	 	  info_table[change_index].name, 
-	//								  info_table[change_index].sex, 
-	//								  info_table[change_index].specialty, 
-	//								  info_table[change_index].class);
 	printf("Please input the new info of the student: \n");
  	printf("Student's new ID: ");
 	scanf("%d", &info_table[change_index].ID);
@@ -221,26 +209,31 @@ void modify_stu_info(struct stu_info_node info_table[], int number)
 void search_stu_info(struct stu_info_node info_table[], int number)
 {
 	int select = 0;;
+	printf("Please what you want to search:\n");
 	while(1)
 	{
-		printf(" (1) search by ID \n");
-		printf(" (2) search by name \n");                  	
+		printf(" 1.search by ID. \n");
+		printf(" 2.search by name. \n");                  	
+		printf(" 3.search by specialty.\n");                  	
 		scanf("%d", &select);                              	
 		switch(select)                                     	
 		{                                                  	
 			case 1:                                        	
 				find_by_ID(info_table, number);          	
 				break;                                     	
-			//case 2:                                        	
-			//	find_by_name(info_table, number);        	
-			//	break;                                     	
+			case 2:                                        	
+				find_by_name(info_table, number);        	
+				break;                                     	
+			case 3:
+				find_by_specialty(info_table, number);
+				break;
 			default:                                       	
 				printf("The input is wrong. Try again.\n");	
 				break;                                     	
 		}                                                  	
 
 		getchar();
-		printf("Continue input or not ? (y/n) ");
+		printf("Continue to search or not ? (y/n) ");
 		if(getchar() == 'n')
 			break;
  	}
@@ -248,19 +241,179 @@ void search_stu_info(struct stu_info_node info_table[], int number)
 
 void find_by_ID(struct stu_info_node info_table[], int number)
 {
-	int id;
-	printf("Please input the search ID: \n");
+	int id = 0;
+	int count;
+	printf("Please input the ID that you want to search: \n");
 	scanf("%d", &id);
 
+	printf("----------------------------------------------\n");
+	printf(" %s\t%s\t%s\t%s\t%s\n", "ID", "name", "sex", "specialty", "class");
+	printf("----------------------------------------------\n");
 	for(int i=0; i<number; ++i)
 	{
 		if(id == info_table[i].ID)
+		{
 	 	 	display_single_stu_info(info_table, i);
+			++count;
+		}
 	}
+	printf("Find %d people's ID that is %d.\n", count, id);
 }
 
+void find_by_name(struct stu_info_node info_table[], int number)
+{
+	char name[20];
+	int count = 0;
+	printf("Please input the name that you want to search: ");
+	scanf("%s", name);
 
+	printf("----------------------------------------------\n");
+	printf(" %s\t%s\t%s\t%s\t%s\n", "ID", "name", "sex", "specialty", "class");
+	printf("----------------------------------------------\n");
+	for(int i=0; i<number; ++i)
+	{
+		if(strcmp(name, info_table[i].name) == 0)
+		{
+			display_single_stu_info(info_table, i);
+			++count;
+		}
+	}
+	printf("Find %d people that is named %s.\n", count, name);
+}
 
+void find_by_specialty(struct stu_info_node info_table[], int number)
+{
+	char specialty[80];
+	int count = 0;
 
+	printf("Please input the specialty that you want to search: ");
+	scanf("%s", specialty);
 
+	printf("----------------------------------------------\n");
+	printf(" %s\t%s\t%s\t%s\t%s\n", "ID", "name", "sex", "specialty", "class");
+	printf("----------------------------------------------\n");
+	for(int i=0; i<number; ++i)
+	{
+		if(strcmp(specialty, info_table[i].specialty) == 0)
+		{
+		 	display_single_stu_info(info_table, i);	
+			++count;
+		}
+	}
+	printf("Find %d people of %s specialty.\n", count, specialty);
+}
+
+int delete_stu_info(struct stu_info_node info_table[], int number)
+{
+	int id = 0;
+	char name[20];
+	char specialty[80];
+	int delete_count = 0;
+	int select = 0;
+
+	printf("Please input what you want to delete: \n");
+	while(1)
+	{
+		printf(" 1.delete by ID. \n");
+		printf(" 2.delete by name. \n");                  	
+		printf(" 3.delete by specialty.\n");                  	
+		scanf("%d", &select);                              	
+		switch(select)                                     	
+		{                                                  	
+			case 1:                                        	
+				delete_count = delete_by_ID(info_table, number);          	
+				break;                                     	
+			case 2:                                        	
+				delete_count = delete_by_name(info_table, number);        	
+				break;                                     	
+			case 3:
+				delete_count = delete_by_specialty(info_table, number);
+				break;
+			default:                                       	
+				printf("The input is wrong. Try again.\n");	
+				break;                                     	
+		}                                                  	
+
+		getchar();
+		printf("Continue to delete or not ? (y/n) ");
+		if(getchar() == 'n')
+			break;
+ 	}
+	update_stu_info(info_table, number - delete_count);
+	printf("Deleted on success.\n");
+	return number - delete_count;
+}
+
+int delete_by_ID(struct stu_info_node info_table[], int number)
+{
+	int id = 0;
+	int count = 0;
+	printf("Please input the ID that you want to delete: \n");
+	scanf("%d", &id);
+
+	printf("----------------------------------------------\n");
+	printf(" %s\t%s\t%s\t%s\t%s\n", "ID", "name", "sex", "specialty", "class");
+	printf("----------------------------------------------\n");
+	for(int i=0; i<number; ++i)
+	{
+		if(id == info_table[i].ID)
+		{
+		 	display_single_stu_info(info_table, i);	
+			for(int j=i; j<number; ++j)
+			 	info_table[j].ID = info_table[j + 1].ID;
+			++count;
+		}
+	}
+	printf("Delete %d people's ID that is %d.\n", count, id);
+	return count;
+}
+
+int delete_by_name(struct stu_info_node info_table[], int number)
+{
+	char name[20];
+	int count = 0;
+	printf("Please input the name that you want to delete: ");
+	scanf("%s", name);
+
+	printf("----------------------------------------------\n");
+	printf(" %s\t%s\t%s\t%s\t%s\n", "ID", "name", "sex", "specialty", "class");
+	printf("----------------------------------------------\n");
+	for(int i=0; i<number; ++i)
+	{
+		if(strcmp(name, info_table[i].name) == 0)
+		{
+		 	display_single_stu_info(info_table, i);	
+			for(int j=i; j<number; ++j)
+			 	info_table[j].name[20] = info_table[j + 1].name[20];
+			++count;
+		}
+	}
+	printf("Delete %d people that is named %s.\n", count, name);
+	return count;
+}
+
+int delete_by_specialty(struct stu_info_node info_table[], int number)
+{
+	char specialty[80];
+	int count = 0;
+
+	printf("Please input the specialty that you want to delete: ");
+	scanf("%s", specialty);
+
+	printf("----------------------------------------------\n");
+	printf(" %s\t%s\t%s\t%s\t%s\n", "ID", "name", "sex", "specialty", "class");
+	printf("----------------------------------------------\n");
+	for(int i=0; i<number; ++i)
+	{
+		if(strcmp(specialty, info_table[i].specialty) == 0)
+		{
+		 	display_single_stu_info(info_table, i);	
+			for(int j=i; j<number; ++j)
+			 	info_table[j].specialty[80] = info_table[j + 1].specialty[80];
+			++count;
+		}
+	}
+	printf("Delete %d people of %s specialty.\n", count, specialty);
+	return count;
+}
 
