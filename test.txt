@@ -1,0 +1,15 @@
+#define LWIP_DHCP_TASK_PRIO							6		//任务优先级
+#define LWIP_DHCP_TASK_SIZE 						128		//任务堆栈大小	
+OS_TCB 	LwipDhcpTaskTCB;									//任务控制块
+CPU_STK LwipDhcpTaskStack[LWIP_DHCP_TASK_SIZE];				//任务堆栈	
+
+//=========================================================================================================
+#define ETH_MAC_TASK_PRIO							6		//任务优先级
+#define ETH_MAC_TASK_SIZE 							512		//任务堆栈大小	
+OS_TCB 	EthMacTaskTCB;										//任务控制块
+CPU_STK ETHMacTaskStack[ETH_MAC_TASK_SIZE];					//任务堆栈	
+
+//=========================================================================================================
+#define ETH_CLIENT_TASK_PRIO						7		//任务优先级
+#define ETH_CLIENT_TASK_SIZE 						512		//任务堆栈大小	
+OS_TCB 	EthClientTaskTCB;					
