@@ -1,0 +1,962 @@
+/****************************************************************************
+File name	: iniparser.c
+Author		: m001602
+Version		: V1.0	
+Date		: 2018.09.25
+Description	: ini配置文件的写入，读取，解析
+Others		: 无
+History		:
+****************************************************************************/
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include <stdio.h>
+#include <ctype.h>
+#include <string.h>
+#include <stdlib.h>
+#include "math.h"
+
+#include "iniparser.h"
+#include "Private.h"
+#include "syslib.h"
+
+#include "exfuns.h"
+#include "LogicalDrive.h"
+#include "fattester.h"
+
+/* Here for now until needed in other places in lwIP */
+
+#define in_range(c, lo, up)  ((unsigned char)c >= lo && (unsigned char)c <= up)
+#define isprint(c)           in_range(c, 0x20, 0x7f)
+#define isdigit(c)           in_range(c, '0', '9')
+#define isxdigit(c)          (isdigit(c) || in_range(c, 'a', 'f') || in_range(c, 'A', 'F'))
+#define islower(c)           in_range(c, 'a', 'z')
+#define isspace(c)           (c == ' ' || c == '\f' || c == '\n' || c == '\r' || c == '\t' || c == '\v')
+
+#define UPGRADE_FILE_NAME 		"1:\\upgrade.ini"
+#define UPGRADE_FILE_NEW_NAME 	"1:\\upgrade-new.ini"
+
+// printf("File = %s\nLine = %d\nFunc=%s\nDate=%s\nTime=%s\n", __FILE__, __LINE__, __FUNCTION__, __DATE__, __TIME__);
+//#define  PRINT_ERRMSG(STR) fprintf(stderr,"line:%d,msg:%s,eMsg:%s\n", __LINE__, STR, strerror(errno))
+
+#define  PRINT_ERRMSG (printf)
+
+FIL g_stSpiFile;
+
+/***
+*long atol(char *nptr) - Convert string to long
+*
+*Purpose:
+* Converts ASCII string pointed to by nptr to binary.
+* Overflow is not detected.
+*
+*Entry:
+* nptr = ptr to string to convert
+*
+*Exit:
+* return long int value of the string
+*
+*Exceptions:
+* None - overflow is not detected.
+*
+*******************************************************************************/	
+long atol(const char *nptr)
+{
+	int c; /* current char */
+	long total; /* current total */
+	int sign; /* if ''-'', then negative, otherwise positive */
+	 
+	/* skip whitespace */
+	while ( isspace((int)(unsigned char)*nptr) )
+		++nptr;
+	 
+	c = (int)(unsigned char)*nptr++;
+	sign = c; /* save sign indication */
+	if (c == '-' || c == '+')
+		c = (int)(unsigned char)*nptr++; /* skip sign */
+
+	total = 0;
+	while (isdigit(c))
+	{
+		total = 10 * total + (c - '0'); /* accumulate digit */
+		c = (int)(unsigned char)*nptr++; /* get next char */
+	}
+	if (sign == '-')
+		return -total;
+	else
+		return total; /* return result, negated if necessary */
+}
+
+/***
+*int atoi(char *nptr) - Convert string to long
+*
+*Purpose:
+* Converts ASCII string pointed to by nptr to binary.
+* Overflow is not detected. Because of this, we can just use
+* atol().
+*
+*Entry:
+* nptr = ptr to string to convert
+*
+*Exit:
+* return int value of the string
+*
+*Exceptions:
+* None - overflow is not detected.
+*
+*******************************************************************************/
+int _atoi(const char *nptr)
+{
+	if (NULL == nptr)
+	{
+		return 0;
+	}
+	
+	return (int)atol(nptr);
+}
+
+// 整型数转换成字符串
+char* _itoa(int value, char* string, int radix)
+{
+	char tmp[33];
+	char* tp = tmp;
+	int i;
+	unsigned v;
+	int sign;
+	char* sp;
+
+	if (NULL == string)
+	{
+		return NULL;
+	}
+	
+	if (radix > 36 || radix <= 1)
+	{
+		return 0;
+	}
+	
+	sign = (radix == 10 && value < 0);
+	if (sign)
+	{
+		v = -value;
+	}
+	else
+	{
+		v = (unsigned)value;
+	}
+	
+	while (v || tp == tmp)
+	{
+		i = v % radix;
+		v = v / radix;
+		if (i < 10)
+		{
+			*tp++ = i + '0';
+		}
+		else
+		{
+			*tp++ = i + 'a' - 10;
+		}
+	}
+	
+	sp = string;
+	if (sign)
+	{
+		*sp++ = '-';
+	}
+	
+	while (tp > tmp)
+	{
+		*sp++ = *--tp;
+	}
+	*sp = 0;
+	
+	return string;
+}
+
+// 字符串转换成浮点数
+double _atof(const char *str)
+{
+	const char *p = str;
+	int sign = 1;
+	int hasDot = 0,hasE = 0;
+	double integerPart = 0.0,decimalPart = 0.0;
+	int decimalDigits = 1;
+	int exponential = 0;   
+	
+	while (*p == ' ')
+	{
+		++p;//忽略前置空格
+	}
+		
+	if (*p == '-')//考虑是否有符号位
+	{
+	    sign = -1;
+	    ++p;
+	}
+	else if (*p == '+')
+	{
+	    ++p;
+	}
+	
+	//遇到'e'或'.'字符则退出循环,设置hasE和hasDot。
+	for (; *p; ++p)
+	{
+	    if (isdigit(*p)) //若p指向的字符为数字则计算当前整数部分的值
+	    {
+	        integerPart = 10 * integerPart + *p - '0';
+	    }
+	    else if (*p == '.')
+		{
+	        hasDot = 1;
+	        p++;
+	        break;
+	    }
+	    else if (*p == 'e' || *p == 'E')
+		{
+	        hasE = 1;
+	        p++;
+	        break;
+	    }
+	    else  //如果遇到非法字符,则截取合法字符得到的数值,返回结果。
+	    {
+	        return integerPart;
+	    }
+	}
+
+	//上一部分循环中断有三种情况,一是遍历完成,这种情况下一部分的循环会自动跳过；
+	// 其次便是是遇到'.'或'e',两种hasE和hasDot只可能一个为真,若hasDot为真则计算小数部分,若hasE为真则计算指数部分。
+	 
+	for (; *p; p++)
+	{
+	    if (hasDot && isdigit(*p))
+	    {
+	        decimalPart += (*p - '0') / pow(10, decimalDigits++);
+	    }
+	    else if (hasDot && (*p == 'e' || *p == 'E')) 
+		{
+	        integerPart += decimalPart;
+	        decimalPart = 0.0;
+	        hasE = 1;
+	        ++p;
+	        break;
+	    }
+	    else if (hasE && isdigit(*p))
+	    {
+	        exponential = 10 * exponential + *p - '0';
+	    }
+	    else
+	    {
+			break;
+	    }
+	}
+	
+	// 上一部分较难理解的就是else if (hasDot && (*p == 'e' || *p == 'E')) 这一特殊情况,
+	// 对于合法的浮点数,出现'.'字符后,仍然有可能是科学计数法表示,但是出现'e'之后,指数部分不能为小数(这符合<string.h>对atof()的定义)。
+	// 这种情况变量IntegerPart和decimalPart都是科学计数法的基数,因此有integerPart += decimalPart(这使得IntergerPart的命名可能欠妥,BasePart可能是一种好的选择)。
+	//上一部分循环结束一般情况下就能返回结果了,除非遇到前文所述的特殊情况，对于特殊情况需要继续计算指数。
+	if (hasE && hasDot)
+	{
+	    for (; *p; p++)
+	    {
+	        if (isdigit(*p))
+	        {
+	            exponential = 10 * exponential + *p - '0';
+	        }
+	    }
+	}
+	
+	return sign * (integerPart * pow(10, exponential) + decimalPart);
+}
+
+// 打印双精度浮点数,保留6位小数(在STM32工程中打印浮点数有问题，此方法为简单解决办法)
+void PrintDouble(double value)
+{
+    int tmp,tmp1,tmp2,tmp3,tmp4,tmp5,tmp6;
+	
+    tmp = (int)value;
+    tmp1=(int)((value-tmp)*10)%10;
+    tmp2=(int)((value-tmp)*100)%10;
+    tmp3=(int)((value-tmp)*1000)%10;
+    tmp4=(int)((value-tmp)*10000)%10;
+    tmp5=(int)((value-tmp)*100000)%10;
+    tmp6=(int)((value-tmp)*1000000)%10;
+    printf("%d.%d%d%d%d%d%d\r\n",tmp,tmp1,tmp2,tmp3,tmp4,tmp5,tmp6);
+}
+
+/**
+* 判断字符串是否为空
+* 为空返回true,不为空返回false
+**/
+unsigned char str_empty(const char *string)
+{
+	return NULL == string || 0 == strlen(string);
+}
+
+/**
+* 去掉字符串内所有空白
+* 且忽略注释部分
+* 最终得到没有空白的字符串
+**/
+unsigned char ini_strip_comments(char *string, char comment)
+{
+	char *p = NULL;
+	char *q = NULL; /* 下面去掉字符串中所有空白字符 */
+
+	if (NULL == string || '\n' == *string || '\r' == *string)
+	{
+		return false; /* 第一个字符为回车或换行,表示空行 */
+	}
+
+
+	for (p = q = string; *p != '\0' && *p != comment; p++) 
+	{
+		if (0 == isspace(*p)) 
+		{
+		  *q++ = *p; /* 不是空白字符则重写字符串 */
+		}
+	}
+	*q = '\0';
+
+	return 0 != strlen(string); /* 字符串长度不为0,表示数据可用 */
+}
+
+/**
+* 初始化ini配置结构体
+* 参数: 无
+* 返回INI_CONFIG_ST结构体链表头指针
+**/
+INI_CONFIG_ST *ini_initial_config(void)
+{
+	INI_CONFIG_ST *pstIniCfg = NULL;
+	
+	pstIniCfg = (INI_CONFIG_ST*)safe_malloc(sizeof(INI_CONFIG_ST));
+	if(NULL == pstIniCfg)
+	{
+		printf("pstIniCfg get memory failed!\r\n");
+		return NULL;
+	}
+	
+	pstIniCfg->comment    = 0; /* 每一行该字符及以后的字符将丢弃 */
+	pstIniCfg->separator  = 0; /* 用来分隔Section 和 数据 */
+	pstIniCfg->data       = NULL; /* 初始数据为空 */
+
+	return pstIniCfg;
+}
+
+/**
+* 向链表添加section,key,value
+* 如果添加时不存在section则新增一个
+* 如果对应section的key不存在则新增一个
+* 如果section已存在则不会重复创建
+* 如果对应section的key已存在则只会覆盖key的值
+**/
+unsigned char ini_add_option(INI_CONFIG_ST *pstIniCfg, const char *section, const char *key, const char *value)
+{
+	INI_DATA_ST *p = NULL;
+	INI_OPTION_ST *q = NULL;
+
+	if (NULL == pstIniCfg || str_empty(section) || str_empty(key) || str_empty(value))
+	{
+		return false; /* 参数不正确,返回false */
+	}
+
+	p = pstIniCfg->data; /* 让变量p循环遍历data,找到对应section */
+	while (NULL != p && 0 != strcmp(p->section, section)) 
+	{
+		p = p->next;
+	}
+
+	if (NULL == p) /* 说明没有找到section,需要加一个 */
+	{ 
+		INI_DATA_ST *ps = (INI_DATA_ST*)safe_malloc(sizeof(INI_DATA_ST));
+		if (NULL == ps) 
+		{
+			//exit(-1); /* 申请内存错误 */
+			return 0;
+		}
+		strcpy(ps->section, section);
+		ps->option = NULL;    /* 初始的option要为空 */
+		ps->next = pstIniCfg->data; /* pstIniCfg->data可能为NULL */
+		pstIniCfg->data = p = ps;   /* 头插法插入链表 */
+	}
+
+	q = p->option;
+	while (NULL != q && 0 != strcmp(q->key, key)) 
+	{
+		q = q->next; /* 遍历option,检查key是否已经存在 */
+	}
+
+	if (NULL == q)  /* 不存在option,则新建一个 */
+	{
+		q = (INI_OPTION_ST *)safe_malloc(sizeof(INI_OPTION_ST));
+		if (NULL == q) 
+		{
+		  //exit(-1); /* 申请内存错误 */
+		  return 0;
+		}
+		strcpy(q->key, key);
+		q->next = p->option; /*这里p->option可能为NULL,不过也没关系 */
+		p->option = q; /* 头插法插入链表 */
+	}
+	strcpy(q->value, value); /* 无论如何要把值改了 */
+  
+  return true;
+}
+
+/**
+* 读取ini配置文件中的所有配置信息
+* 参数有文件路径,注释字符,分隔符
+* 返回读取ini配置文件所有信息的INI_CONFIG_ST结构体的链表头指针
+**/
+INI_CONFIG_ST *ini_read_config(INI_CONFIG_ST *pstIniCfg, const char *filename, char comment, char separator)
+{
+	FRESULT ret;
+	char *p, sLine[MAX_VALUE];	  /* 保存一行数据到字符串 */
+	char section[MAX_VALUE], key[MAX_VALUE], value[MAX_VALUE]; /* 缓存section,key,value */
+
+	if (NULL== pstIniCfg || str_empty(filename)) 
+	{
+		return pstIniCfg; /* 空字符串则直接返回对象 */
+	}
+
+	pstIniCfg->comment    = comment; /* 每一行该字符及以后的字符将丢弃 */
+	pstIniCfg->separator  = separator; /* 用来分隔Section 和 数据 */
+
+	#if NON_FATFS > 0
+	FILE *fp = fopen(filename, "r");
+	if(NULL == fp) 
+	{
+		PRINT_ERRMSG("fopen");
+		//exit(errno); /* 读文件错误直接按照错误码退出 */
+	}
+		
+	#else
+	// 挂载SPI Flash分区
+	ret = f_mount(fs[1], SPI_FLASH_LOGICAL_DRIVE_NUM, MOUNT_IMMEDIATELY);
+
+	// 确定文件打开属性为从已存在的文件中读取数据
+	ret = f_open(&g_stSpiFile, filename, FA_OPEN_EXISTING | FA_READ);
+	if(ret)
+	{
+		printf("'%s' is not exist in logical drive!\n\r", filename);
+		return NULL;
+	}
+	else
+	{
+		printf("Open '%s' success in logical drive.\r\n", filename);
+	}
+	#endif
+
+	#if NON_FATFS > 0
+	while (NULL != fgets(sLine, MAX_VALUE, fp))
+	else
+	while (0 != f_gets(sLine, MAX_VALUE, &g_stSpiFile)) 
+	#endif
+	{	
+		if (ini_strip_comments(sLine, pstIniCfg->comment)) 	/* 去掉字符串所有空白,注释也忽略 */
+		{ 
+			if ('[' == sLine[0] && ']' == sLine[strlen(sLine)-1]) 
+			{
+				memset(section, '\0', MAX_VALUE); /* 清空section,因为strncpy不追加'\0' */
+				strncpy(section, sLine+1, strlen(sLine)-2);
+			} 
+			else if (NULL != (p = strchr(sLine, pstIniCfg->separator))) 
+			{  /* 存在分隔符 */
+				memset(key,   '\0', MAX_VALUE); /* 清空key,因为strncpy不追加'\0' */
+				strncpy(key,  sLine, p - sLine);
+				strcpy(value, p + 1); /* strcpy会追加'\0',所以妥妥哒 */
+				ini_add_option(pstIniCfg, section, key, value); /* 添加section,key,value */
+			} /* 如果该行不存在分隔符则忽略这一行 */
+		} /* end ini_strip_comments */
+	} /* end while */
+
+	#if NON_FATFS > 0
+	fclose(fp);
+	#else
+	f_close(&g_stSpiFile);
+	#endif
+
+	return pstIniCfg;
+}
+
+/**
+* 获取指定类型的值
+* 根据不同类型会赋值给对应值
+* 本方法需要注意,int和double的转换,不满足就是0
+*     需要自己写代码时判断好
+**/
+unsigned char ini_get_value(INI_CONFIG_ST *pstIniCfg, const char *section, const char *key)
+{
+	INI_OPTION_ST *q = NULL;
+	INI_DATA_ST *p = NULL;
+
+	if (NULL == pstIniCfg || str_empty(section))
+	{
+		return false;
+	}
+
+	 /* 让变量p循环遍历data,找到对应section */
+	p = pstIniCfg->data;
+	while (NULL != p && 0 != strcmp(p->section, section))
+	{
+		p = p->next;
+	}
+	if (NULL == p) 
+	{
+		PRINT_ERRMSG("section not find!");
+		return false;
+	}
+
+	/* 遍历option,检查key是否已经存在 */
+	q = p->option;
+	while (NULL != q && 0 != strcmp(q->key, key)) 
+	{
+		q = q->next; 
+	}
+	if (NULL == q) 
+	{
+		PRINT_ERRMSG("key not find!\r\n");
+		return false;
+	}
+
+	// 找到对应的section,key, 将查找到的值放到ini节点中
+	strcpy(pstIniCfg->ret_string, q->value);       		/* 将结果字符串赋值 */
+	pstIniCfg->ret_int    = _atoi((const char *)pstIniCfg->ret_string);  /* 转换为整形 */
+	pstIniCfg->ret_bool   = (0 == strcmp ("true", pstIniCfg->ret_string)); /* 转换为bool型 */
+	pstIniCfg->ret_double = _atof((const char *)pstIniCfg->ret_string);  /* 转换为double型 */
+
+	return true;
+}
+
+/**
+* 判断section是否存在
+* 不存在返回空指针
+* 存在则返回包含那个section的Data指针
+**/
+INI_DATA_ST *ini_has_section(INI_CONFIG_ST *pstIniCfg, const char *section)
+{
+	INI_DATA_ST *p = NULL;
+	
+	if (NULL == pstIniCfg || str_empty(section))
+	{
+		return NULL;
+	}
+
+	/* 让变量p循环遍历data,找到对应section */
+	p = pstIniCfg->data; 
+	while (NULL != p && 0 != strcmp(p->section, section)) 
+	{
+		p = p->next;
+	}
+
+	if (NULL == p) /* 没找到则不存在 */
+	{ 
+		return NULL;
+	}
+
+	return p;
+}
+
+/**
+* 判断指定option是否存在
+* 不存在返回空指针
+* 存在则返回包含那个section下key的Option指针
+**/
+INI_OPTION_ST *ini_has_option(INI_CONFIG_ST *pstIniCfg, const char *section, const char *key)
+{
+	INI_OPTION_ST *q = NULL;
+	INI_DATA_ST *p = NULL;
+
+	if (NULL == pstIniCfg || str_empty(section) || str_empty(key))
+	{
+		return NULL;
+	}
+	
+	p = ini_has_section(pstIniCfg, section);
+	if (NULL == p)	/* 没找到则不存在 */
+	{ 
+		return NULL;
+	}
+
+	/* 遍历option,检查key是否已经存在 */
+	q = p->option;
+	while (NULL != q && 0 != strcmp(q->key, key)) 	
+	{
+		q = q->next; 
+	}
+	
+	if (NULL == q) 	/* 没找到则不存在 */
+	{ 	
+		return NULL;
+	}
+
+	return q;
+}
+
+/**
+* 将INI_CONFIG_ST对象写入指定文件中
+* header表示在文件开头加一句注释
+* 写入成功则返回true
+**/
+unsigned char ini_write_file(INI_CONFIG_ST *pstIniCfg, const char *filename, const char *header)
+{
+	FRESULT ret;
+	INI_OPTION_ST *q = NULL;
+	INI_DATA_ST   *p = NULL;
+
+	if (NULL == pstIniCfg || str_empty(filename) || str_empty(header))
+	{
+		return false;
+	}
+	
+	#if NON_FATFS > 0
+	FILE *fp = fopen(filename, "w");
+	if(NULL == fp) 
+	{
+		PRINT_ERRMSG("fopen");
+		//exit(errno); /* 读文件错误直接按照错误码退出 */
+		return false;
+	}
+	#else
+	// 挂载SPI Flash分区
+	ret = f_mount(fs[1], SPI_FLASH_LOGICAL_DRIVE_NUM, MOUNT_IMMEDIATELY);
+
+	// 确定文件打开属性为从已存在的文件中读取数据
+	ret = f_open(&g_stSpiFile, filename, FA_OPEN_EXISTING | FA_WRITE);
+	if(ret)
+	{
+		printf("'%s' is not exist in logical drive!\r\n", filename);
+		// 创建一个新文件，并写入内容
+		ret = f_open(&g_stSpiFile, filename, FA_CREATE_ALWAYS | FA_WRITE);
+		if(ret)
+		{
+			printf("Create '%s' fail 8in logical drive\r\n", filename);
+			return false;
+		}
+		else
+		{
+			printf("Create '%s' success in logical drive\r\n", filename);
+		}
+	}
+	else
+	{
+		printf("Open '%s' success in logical drive.\r\n", filename);
+	}
+	#endif
+
+	if (strlen(header) > 0) 
+	{ /* 文件注释不为空,则写注释到文件 */
+		#if NON_FATFS > 0
+		fprintf(fp, "%c %s\n\n", pstIniCfg->comment, header);
+		#else
+		f_printf(&g_stSpiFile, "%c %s\r\n\r\n", pstIniCfg->comment, header);
+		#endif
+	}
+
+	p = pstIniCfg->data;
+	while (NULL != p) 
+	{
+		#if NON_FATFS > 0
+		fprintf(fp, "%c %s\n\n", pstIniCfg->comment, header);
+		#else
+		f_printf(&g_stSpiFile, "[%s]\r\n", p->section);
+		#endif
+		
+		q = p->option;
+		while (NULL != q) 
+		{
+			#if NON_FATFS > 0
+			fprintf(fp, "%c %s\n\n", pstIniCfg->comment, header);
+			#else
+			f_printf(&g_stSpiFile, "%s %c %s\r\n", q->key, pstIniCfg->separator, q->value);
+			#endif
+			q = q->next;
+		}
+		p = p->next;
+	}
+
+	#if NON_FATFS > 0
+	fclose(fp);
+	#else
+	f_close(&g_stSpiFile);
+	#endif
+	
+	return true;
+}
+
+/**
+* 删除option
+**/
+unsigned char ini_remove_option(INI_CONFIG_ST *pstIniCfg, const char *section, const char *key)
+{
+	INI_OPTION_ST *p = NULL;
+	INI_OPTION_ST *q = NULL;
+	INI_DATA_ST *ps = NULL; 
+
+	if (NULL == pstIniCfg || str_empty(section) || str_empty(key))
+	{
+		return false;
+	}
+
+	ps = ini_has_section(pstIniCfg, section);
+	if (NULL == ps) /* 没找到则不存在 */
+	{ 
+		return false;
+	}
+
+	q = p = ps->option;
+	while (NULL != p && 0 != strcmp(p->key, key)) 
+	{
+		if (p != q) /* 始终让q处于p的上一个节点 */
+		{ 
+			q = q->next; 
+		} 
+		p = p->next;
+	}
+
+	if (NULL == p)  /* 没找到则不存在 */
+	{
+		return false;
+	}
+
+	if (p == q) /* 第一个option就匹配了 */
+	{ 
+		ps->option = p->next;
+	} 
+	else 
+	{
+		q->next = p->next;
+	}
+
+	safe_free(p);
+	q = p = NULL; // 避免野指针
+
+	return true;
+}
+
+/**
+* 删除section
+**/
+unsigned char ini_remove_section(INI_CONFIG_ST *pstIniCfg, const char *section)
+{
+	INI_DATA_ST *p = NULL;
+	INI_DATA_ST *q = NULL;
+	INI_OPTION_ST *o = NULL;
+
+	if (NULL == pstIniCfg || str_empty(section)) 
+	{
+		return false;
+	}
+
+	q = p = pstIniCfg->data; /* 让变量p循环遍历data,找到对应section */
+	while (NULL != p && 0 != strcmp(p->section, section)) 
+	{
+		if (p != q) /* 始终让q处于p的上一个节点 */
+		{ 
+			q = q->next; 
+		} 
+		p = p->next;
+	}
+
+	if (NULL == p) /* 没有找到section */
+	{ 
+		return false;
+	}
+
+	if (p == q) /* 这里表示第一个section,因此链表头位置改变 */
+	{ 
+		pstIniCfg->data = p->next;
+	} 
+	else /* 此时是中间或尾部节点 */
+	{ 
+		q->next = p->next;
+	}
+
+	o = p->option;
+	while (NULL != o)  /* 循环释放所有option */
+	{
+		safe_free(o);
+		o = o->next;
+	}
+	
+	p->option = NULL; // 避免野指针
+	safe_free(p); 		/* 释放删除的section */
+	q = p = NULL;  	// 避免野指针
+
+	return true;
+}
+
+/**
+*  注销注销INI_CONFIG_ST节点指向的内存,以及ini数据节点链表对应的所有data节点和option节点内存
+**/
+unsigned char ini_destroy_config(INI_CONFIG_ST *pstIniCfg)
+{
+	INI_OPTION_ST *pstOptionNode = NULL;
+	INI_DATA_ST *pstDataNode = NULL;
+
+	if (NULL == pstIniCfg) 
+	{
+		return false;
+	}
+
+	// 循环注销ini数据节点的结构体指针指向的data节点内存和option节点内存
+	pstDataNode = pstIniCfg->data; 
+	while (NULL != pstDataNode)
+	{
+		// 循环注销data节点指针指向的option节点内存
+		pstOptionNode = pstDataNode->option;
+		while (NULL != pstOptionNode) 
+		{
+			safe_free(pstOptionNode);
+			pstOptionNode = pstOptionNode->next;
+		}
+
+		safe_free(pstDataNode);
+		pstDataNode = pstDataNode->next;
+	}
+
+	// 注销INI_CONFIG_ST节点指向的内存
+	safe_free(pstIniCfg);
+
+	pstIniCfg = NULL;
+	pstOptionNode = NULL;
+	pstDataNode = NULL;
+
+	return true;
+}
+
+/**
+* 打印当前ini配置文件中的所有对象信息
+**/
+void print_ini_all_info(INI_CONFIG_ST *pstIniCfg)
+{
+	INI_OPTION_ST *q = NULL;
+	INI_DATA_ST *p = NULL;
+
+	if (NULL == pstIniCfg) 
+	{
+		return ;
+	}
+
+	p = pstIniCfg->data; // 循环打印结果
+	while (NULL != p)
+	{
+		printf("[%s]\r\n",p->section);
+
+		q = p->option;
+		while (NULL != q) 
+		{
+			printf("  %s %c %s\r\n", q->key, pstIniCfg->separator, q->value);
+			q = q->next;
+		}
+		p = p->next;
+	}
+}
+
+/**
+* 主程序,放在最底下
+* 避免重复声明其他函数
+**/
+void ini_parser_test(void)
+{
+	FRESULT ret;
+	INI_CONFIG_ST *pstIniCfg;
+	char u8Buf[15]; 
+
+	// 挂载逻辑分区
+	ret = f_mount(fs[1], SPI_FLASH_LOGICAL_DRIVE_NUM, MOUNT_IMMEDIATELY);
+	if (ret == FR_INVALID_DRIVE)	// 
+	{
+		return ;
+	}
+
+	printf("-------------- Before delete upgrade ini files --------------\r\n");
+	mf_scan_files(SPI_FLASH_LOGICAL_DRIVE_NUM);
+	
+	//f_unlink(UPGRADE_FILE_NAME);
+	//f_unlink(UPGRADE_FILE_NEW_NAME);
+	
+	printf("-------------- After delete upgrade ini files --------------\r\n");
+	mf_scan_files(SPI_FLASH_LOGICAL_DRIVE_NUM);
+
+	// 打开已存在的文件，并写入内容，不存在则创建该文件
+	ret = f_open(&g_stSpiFile, (TCHAR*)UPGRADE_FILE_NAME, FA_OPEN_EXISTING | FA_WRITE);
+	if(ret)
+	{
+		printf("Open '%s' fail in logical drive\r\n", UPGRADE_FILE_NAME);
+
+		// 创建一个新文件，并写入内容
+		ret = f_open(&g_stSpiFile, (TCHAR*)UPGRADE_FILE_NAME, FA_CREATE_ALWAYS | FA_WRITE);
+		if(ret)
+		{
+			printf("Create '%s' fail in logical drive\r\n", UPGRADE_FILE_NAME);
+			return ;
+		}
+		else
+		{
+			printf("Create '%s' success in logical drive, f_size: %d\r\n", UPGRADE_FILE_NAME, f_size(&g_stSpiFile));
+		}
+	}
+	else
+	{
+		//printf("Create '%s' success in logical drive, f_size: %d\r\n", UPGRADE_FILE_NAME, f_size(&g_stSpiFile));
+	}
+
+	f_close(&g_stSpiFile);
+
+	// 初始化ini配置结构体链表头结点
+	pstIniCfg = ini_initial_config();
+	if (NULL == pstIniCfg) 
+	{
+		return ; /* 创建对象失败 */
+	}
+	
+	// 读取配置文件upgrade.ini,注释字符为#,分隔键值字符为=
+	pstIniCfg = ini_read_config(pstIniCfg, UPGRADE_FILE_NAME, '#', '=');
+	if (NULL == pstIniCfg) 
+	{
+		return ; /* 读取节点信息失败失败 */
+	}
+
+	printf("\r\n-------------- After Read File --------------\r\n");
+	print_ini_all_info(pstIniCfg); // 打印pstIniCfg对象  
+	ini_add_option(pstIniCfg, "AAA", "sdf", "0"); // 新增AAA下的sdf的值
+	ini_add_option(pstIniCfg, "CC", "df", "2"); // 新增CC下的df的值
+	ini_add_option(pstIniCfg, "CC", "df", "007"); // 新增CC下的df的值
+	print_ini_all_info(pstIniCfg); // 打印pstIniCfg对象  
+	ini_remove_section(pstIniCfg,"AAA"); // 删除AAA的section
+	ini_remove_option(pstIniCfg, "CC","df");  // 删除CC下的df
+	printf("-------------- After remove --------------\r\n");
+	print_ini_all_info(pstIniCfg); // 打印pstIniCfg对象  
+	ini_add_option(pstIniCfg, "Upgrade", "upgrade_type", "0"); // 新增Upgrade下的upgrade_type的值
+	ini_add_option(pstIniCfg, "Upgrade", "baudrate", "115200");	 // 新增Upgrade下的baudrate的值
+	ini_add_option(pstIniCfg, "Parameters", "NodeAddr", "1");
+	printf("-------------- After add --------------\r\n");
+	print_ini_all_info(pstIniCfg); // 打印pstIniCfg对象  
+
+	ini_get_value(pstIniCfg, "Upgrade", "baudrate"); // 获取Upgrade下的baudrate值
+	printf("ini_get_value:%s, %d, %d, ", pstIniCfg->ret_string, pstIniCfg->ret_int, pstIniCfg->ret_bool);
+	PrintDouble(pstIniCfg->ret_double);
+	printf("\r\n");
+
+	pstIniCfg->separator = ':'; // 将分隔符改成 : ,冒号
+	printf("Create '%s' file in logical drive, waite for a minute ...\r\n", UPGRADE_FILE_NEW_NAME);
+	ini_write_file(pstIniCfg, UPGRADE_FILE_NEW_NAME, "write a new ini file!"); // 将对象写入upgrade_new.ini文件
+	print_ini_all_info(pstIniCfg); // 打印pstIniCfg对象
+	
+	printf("-------------- After write new file --------------\r\n");
+	mf_scan_files(SPI_FLASH_LOGICAL_DRIVE_NUM);
+
+	// 释放过程中申请的所有动态内存
+	ini_destroy_config(pstIniCfg);
+	
+	return ;
+}
+
+#ifdef __cplusplus		
+}
+#endif /* extern "C" */
+
+
