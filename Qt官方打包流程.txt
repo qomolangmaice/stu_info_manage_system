@@ -1,0 +1,19 @@
+教你使用windeployqt工具来进行Qt的打包发布
+https://blog.csdn.net/sinat_36264666/article/details/73305712
+
+QT使用windeployqt部署发布及其精简
+https://blog.csdn.net/itas109/article/details/80497065
+
+=======================================================================
+Qt Downloads
+http://download.qt.io/
+
+使用 Qt InstallFramework 进行程序打包（一）
+https://blog.csdn.net/Accelerated1987/article/details/50616371
+
+Qt官方的安装包制作框架 Qt installer framework
+https://blog.csdn.net/liukang325/article/details/52297036
+
+（Qt Installer Framework）程序简易打包教程
+https://blog.csdn.net/baidu_33570760/article/details/73467400
+
